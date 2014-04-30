@@ -17,7 +17,7 @@ mod defaults {
 pub struct Parser<A, T> {
     tokens: ~Peekable<A, T>,
     last_span: Span,
-    next_id: u64,
+    next_id: uint,
 }
 
 pub fn new_from_string(s: ~str) -> 
@@ -104,6 +104,7 @@ impl<T: Iterator<SourceToken>> Parser<SourceToken, T> {
                        self.last_span.get_begin());
         }
     }
+
     fn error<'a>(&self, message: &'a str, pos: SourcePos) -> ! {
         fail!("\n{}\nat {}", message, pos)
     }
@@ -383,6 +384,18 @@ impl<T: Iterator<SourceToken>> Parser<SourceToken, T> {
     pub fn parse_type(&mut self) -> Type {
         let start_span = self.peek_span();
         let mut node = match *self.peek() {
+            U32 => {
+                self.expect(U32);
+                IntType(IntKind { signedness: Unsigned, width: Width32 })
+            }
+            I32 => {
+                self.expect(I32);
+                IntType(IntKind { signedness: Signed, width: Width32 })
+            }
+            Bool => {
+                self.expect(Bool);
+                BoolType
+            }
             Star => {
                 self.expect(Star);
                 PtrType(~self.parse_type())

@@ -21,7 +21,14 @@ spanned! {
 }
 
 #[deriving(Eq, Clone, Ord, TotalEq, TotalOrd, Show)]
-pub struct DefId(pub u64);
+pub struct DefId(pub uint);
+
+impl DefId {
+    pub fn to_uint(&self) -> uint {
+        let DefId(did) = *self;
+        did
+    }
+}
 
 #[deriving(Eq, Clone)]
 pub struct IntKind {
@@ -231,9 +238,9 @@ impl Show for ExprNode {
             DotExpr(ref e, ref fld)             => write!(f.buf, "{}.{}", e, fld),
             ArrowExpr(ref e, ref fld)           => write!(f.buf, "{}->{}", e, fld),
             AssignExpr(ref lv, ref rv)          => write!(f.buf, "({}={})", lv, rv),
-            CallExpr(ref id, ref args)          => write!(f.buf, "{}({})", id, args),
+            CallExpr(ref e, ref args)           => write!(f.buf, "{}({})", e, args),
             CastExpr(ref e, ref t)              => write!(f.buf, "({} as {})", e, t),
-            IfExpr(ref c, ref bt, ref bf)       => write!(f.buf, "if {} \\{\n{}\\} else \\{\n{}\\}", c, bt, bf),
+            IfExpr(ref c, ref bt, ref bf)       => write!(f.buf, "if {} \\{\n    {}\\} else \\{\n    {}\\}", c, bt, bf),
             BlockExpr(ref b)                    => write!(f.buf, "{}", b),
             ReturnExpr(ref e)                   => write!(f.buf, "return {}", e),
         }

@@ -20,6 +20,7 @@ pub enum Token {
     False,
     U32,
     I32,
+    Bool,
 
     // Symbols
     LParen,
@@ -123,12 +124,11 @@ impl<T: Iterator<~str>> Lexer<T> {
             fn find(&self, s: &str) -> Option<(uint, (u64, Option<ast::IntKind>))> {
                 use std::num::from_str_radix;
 
-                let matcher = matcher!(r"((?:0[xX]([:xdigit:]+))|(?:\d+))(?:([uUiI])(32|16|8))?");
+                let matcher = matcher!(r"((?:0[xX]([:xdigit:]+))|(?:\d+))(?:([uUiI])(32|16|8)?)?");
                 match matcher.captures(s) {
                     Some(groups) => {
-                        let t = groups.at(1);
                         let (num_str, radix) = match groups.at(2) {
-                            ""  => (t, 10),
+                            ""  => (groups.at(1), 10),
                             hex => (hex, 16),
                         };
 
@@ -141,6 +141,7 @@ impl<T: Iterator<~str>> Lexer<T> {
                             };
 
                             let w = match from_str_radix(groups.at(4), 10) {
+                                None     => ast::Width32,
                                 Some(32) => ast::Width32,
                                 Some(16) => ast::Width16,
                                 Some(8)  => ast::Width8,
@@ -152,7 +153,7 @@ impl<T: Iterator<~str>> Lexer<T> {
                             None
                         };
 
-                        Some((t.len(), (from_str_radix(num_str, radix).take_unwrap(), kind)))
+                        Some((groups.at(0).len(), (from_str_radix(num_str, radix).take_unwrap(), kind)))
                     },
                     _ => None
                 }
@@ -193,6 +194,8 @@ impl<T: Iterator<~str>> Lexer<T> {
             // Basic types; TODO: add more.
             I32        => matcher!(r"[iI]32"),
             U32        => matcher!(r"[uU]32"),
+
+            Bool       => "bool",
 
             // Symbols
             LParen       => "(",

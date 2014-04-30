@@ -2,7 +2,7 @@ use ast::*;
 use ast::visit::*;
 use collections::{SmallIntMap, HashMap};
 
-enum NS {
+pub enum NS {
     TypeNS = 0u,
     ValNS,
     StructNS,
@@ -55,13 +55,13 @@ impl Subscope {
     }
 }
 
-struct Resolver {
+pub struct Resolver {
     table: SmallIntMap<DefId>,
     scope: Vec<Subscope>,
 }
 
 impl Resolver {
-    fn new() -> Resolver {
+    pub fn new() -> Resolver {
         Resolver {
             table: SmallIntMap::new(),
             scope: vec!(),
@@ -80,12 +80,11 @@ impl Resolver {
     }
 
     fn resolve(&mut self, ns: NS, ident: &Ident) {
-        let DefId(id) = ident.id;
         match self.scope.iter().rev()
                                .map(|subscope| { subscope.find(ns, ident) })
                                .skip_while(|did| did.is_none())
                                .next() {
-            Some(Some(did)) => self.table.insert(id as uint, did),
+            Some(Some(did)) => self.table.insert(ident.id.to_uint(), did),
             _ => fail!("Unresolved name {}", ident.name),
         };
     }
@@ -93,6 +92,10 @@ impl Resolver {
     fn add_to_scope(&mut self, ns: NS, ident: &Ident) {
         let subscope = self.scope.mut_last().take_unwrap();
         subscope.insert(ns, ident);
+    }
+
+    pub fn def_from_ident(&self, ident: &Ident) -> DefId {
+        *self.table.find(&ident.id.to_uint()).take_unwrap()
     }
 }
 

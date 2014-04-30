@@ -1,14 +1,13 @@
 use ast::visit::*;
 use ast::*;
 use collections::TreeMap;
-use Type = ast::TypeNode;
 
 #[deriving(Show)]
 pub enum Def {
-    TypeDef(Type),
-    FuncDef(Type, Vec<DefId>, Vec<DefId>),
-    LetDef(Option<Type>),
-    FuncArgDef(Type),
+    TypeDef(TypeNode),
+    FuncDef(Vec<DefId>, TypeNode, Vec<DefId>),
+    LetDef(Option<TypeNode>),
+    FuncArgDef(TypeNode),
     ModDef(Vec<DefId>),
 }
 
@@ -27,12 +26,6 @@ impl DefMap {
         self.table.find(id)
     }
 }
-
-/*
-macro_rules! descend {
-    ( $id:expr, $b:expr ) => ( { let old_parent = self.parent; self.parent = $id; self.visit_block($b); self.parent = old_parent; } );
-}
-*/
 
 /* TODO intern strings so clone is cheaper for NamedTypes */
 
@@ -55,7 +48,7 @@ impl Visitor for DefMap {
         match item.val {
             FuncItem(ref ident, ref args, ref t, ref def, ref tps) => {
                 let arg_def_ids = args.iter().map(|arg| {
-                    self.visit_func_arg(arg);
+                    self.table.insert(arg.ident.id, FuncArgDef(arg.argtype.val.clone())); // would be ParamType or somesuch if we had things like trait bounds
                     arg.ident.id
                 }).collect();
 
@@ -64,7 +57,7 @@ impl Visitor for DefMap {
                     tp.id
                 }).collect();
 
-                self.table.insert(ident.id, FuncDef(t.val.clone(), arg_def_ids, tp_def_ids));
+                self.table.insert(ident.id, FuncDef(arg_def_ids, t.val.clone(), tp_def_ids));
 
                 self.visit_block(def);
             }
@@ -87,7 +80,7 @@ mod tests {
         let mut defmap = DefMap::new();
         defmap.visit_module(&tree);
 
-        assert_eq!(format!("{}", defmap.find(&DefId(0))), ~"Some(FuncDef((), [DefId(2)], [DefId(1)]))");
+        assert_eq!(format!("{}", defmap.find(&DefId(0))), ~"Some(FuncDef([DefId(2)], (), [DefId(1)]))");
         assert_eq!(format!("{}", defmap.find(&DefId(4))), ~"Some(LetDef(None))");
     }
 }
