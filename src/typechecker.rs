@@ -568,10 +568,61 @@ impl<'a> Typechecker<'a> {
                 self.exits.push(ty);
                 BottomTy
             }
-            CastExpr(..) => unimplemented!(),
+            CastExpr(ref e, ref t) => {
+                let e_ty = self.expr_to_ty(*e);
+                let t_ty = self.type_to_ty(t);
+
+                match self.unify(BottomTy, e_ty) {
+                    GenericIntTy | UintTy(..) | IntTy(..) => {}
+                    _ => fail!("Cannot cast expression of non-integral type"),
+                }
+
+                match self.unify(BottomTy, t_ty) {
+                    ty@GenericIntTy | ty@UintTy(..) | ty@IntTy(..) => ty,
+                    _ => fail!("Cannot cast to non-integral type"),
+                }
+            }
             AssignExpr(..) => unimplemented!(), // need self.expr_is_lvalue(...)
-            DotExpr(..) => unimplemented!(),
-            ArrowExpr(..) => unimplemented!(),
+            DotExpr(ref e, ref fld) => {
+                let e_ty = self.expr_to_ty(*e);
+                let (nid, tp_tys) = match self.unify(BottomTy, e_ty) {
+                    StructTy(nid, tp_tys) => (nid, tp_tys),
+                    _ => fail!("Expression is not a structure"),
+                };
+
+                match *self.session.defmap.find(&nid).take_unwrap() {
+                    StructDef(ref fields, ref tps) => {
+                        let mut gs = TreeMap::new();
+                        for (tp, tp_ty) in tps.iter().zip(tp_tys.iter()) {
+                            gs.insert(*tp, tp_ty.clone());
+                        }
+
+                        let field = fields.find(fld).unwrap();
+                        self.with_generics(gs, |me| me.type_to_ty(field))
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            ArrowExpr(ref e, ref fld) => {
+                let e_ty = self.expr_to_ty(*e);
+                let (nid, tp_tys) = match self.unify(BottomTy, e_ty) {
+                    PtrTy(box StructTy(nid, tp_tys)) => (nid, tp_tys),
+                    _ => fail!("Expression is not a pointer to a structure"),
+                };
+
+                match *self.session.defmap.find(&nid).take_unwrap() {
+                    StructDef(ref fields, ref tps) => {
+                        let mut gs = TreeMap::new();
+                        for (tp, tp_ty) in tps.iter().zip(tp_tys.iter()) {
+                            gs.insert(*tp, tp_ty.clone());
+                        }
+
+                        let field = fields.find(fld).unwrap();
+                        self.with_generics(gs, |me| me.type_to_ty(field))
+                    }
+                    _ => unreachable!(),
+                }
+            }
             WhileExpr(ref e, ref b) => {
                 let e_ty = self.expr_to_ty(*e);
                 self.unify(BoolTy, e_ty);
